@@ -1,0 +1,9 @@
+# Basic UI and functionality
+PyQt5
+pillow
+numpy
+
+# YouTube and media downloading
+yt-dlp
+ffmpeg-python
+pyinstaller
