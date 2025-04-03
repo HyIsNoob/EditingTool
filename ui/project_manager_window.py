@@ -468,7 +468,33 @@ class ProjectManagerWindow(QMainWindow):
             }
         """)
         actions_layout.addWidget(self.auto_refresh_check)
+        
+        # Nút mở thư mục dự án - với màu nổi bật
+        open_folder_btn = QPushButton("Mở Dự Án")
+        open_folder_btn.setIcon(QIcon("resources/icons/folder.png"))
+        open_folder_btn.setIconSize(QSize(18, 18))
+        open_folder_btn.setToolTip("Mở thư mục dự án trong File Explorer")
+        open_folder_btn.clicked.connect(self.open_project_folder)
+        open_folder_btn.setCursor(Qt.PointingHandCursor)
+        open_folder_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2e7d32;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1b5e20;
+            }
+            QPushButton:pressed {
+                background-color: #1b5e20;
+            }
+        """)
+        actions_layout.addWidget(open_folder_btn)
 
+        
         # Nút làm mới - đặt ở cùng hàng với các nút khác
         reload_btn = QPushButton("Làm Mới")
         reload_btn.setIcon(QIcon("resources/icons/reload.png"))
@@ -1458,3 +1484,19 @@ class ProjectManagerWindow(QMainWindow):
         if self.refresh_timer and self.refresh_timer.isActive():
             self.refresh_timer.stop()
         event.accept()
+
+    def open_project_folder(self):
+        """Mở thư mục dự án trong File Explorer"""
+        if not self.current_project:
+            QMessageBox.warning(self, "Lỗi", "Không có dự án nào được mở.")
+            return
+            
+        try:
+            import subprocess
+            if os.name == 'nt':  # Windows
+                os.startfile(self.current_project)
+            elif os.name == 'posix':  # macOS, Linux
+                subprocess.Popen(['xdg-open', self.current_project])
+            self.statusBar().showMessage("Đã mở thư mục dự án")
+        except Exception as e:
+            QMessageBox.warning(self, "Lỗi", f"Không thể mở thư mục dự án: {str(e)}")

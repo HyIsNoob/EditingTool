@@ -38,7 +38,7 @@ hidden_imports.extend(collect_submodules('utils'))
 # Create the Analysis object with all imports and data files
 a = Analysis(
     ['main.py'],  # Main script
-    pathex=['D:\fileluu\Tools\ProjectPic2Text'],
+    pathex=['D:\fileluu\Tools\EditingTool'],
     binaries=[],
     datas=datas,
     hiddenimports=hidden_imports,
@@ -67,7 +67,9 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,  # No console window
-    icon='D:/fileluu/Tools/ProjectPic2Text/resources/icons/app_icon.ico'
+    icon='D:/fileluu/Tools/EditingTool/resources/icons/app_icon.ico',
+    uac_admin=True,  # Request admin rights when launching
+    uac_uiAccess=False,
 )
 
 # Create the directory structure
