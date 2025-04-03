@@ -1,11 +1,6 @@
 # KHyTool <img src="https://img.shields.io/badge/Version-1.0-blue" alt="Version 1.0"> <img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT">
 
 <p align="center">
-  <!-- Consider adding your project logo here -->
-  <img src="path/to/logo.png" alt="KHyTool Logo" width="200">
-</p>
-
-<p align="center">
   <b>A powerful project management tool with integrated video downloading capabilities</b>
 </p>
 
