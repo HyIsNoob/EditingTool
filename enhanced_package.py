@@ -143,7 +143,9 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,  # No console window
-    {icon_option}
+    {icon_option},
+    uac_admin=True,  # Request admin rights when launching
+    uac_uiAccess=False,
 )
 
 # Create the directory structure

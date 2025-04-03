@@ -13,6 +13,7 @@ from io import BytesIO
 from utils.helpers import clean_filename, format_size, format_time
 import yt_dlp
 from utils.download_manager import DownloadManager
+from utils.config_manager import ConfigManager
 
 class DownloadThread(QThread):
     progress_signal = pyqtSignal(int, str, str, str, str)  # progress, speed, downloaded, remaining_time, total_size
@@ -847,7 +848,22 @@ class YouTubeDownloaderWindow(QMainWindow):
         self.setWindowTitle("KHyTool - YouTube Downloader")
         self.setMinimumSize(900, 650)
         self.showMaximized()  # Đảm bảo mở full screen
-        self.output_path = os.path.expanduser("~/Downloads")
+        
+        # Use ConfigManager for output path
+        self.config_manager = ConfigManager.get_instance()
+        self.output_path = self.config_manager.get_download_dir()
+        
+        # Create download directory if it doesn't exist
+        if not os.path.exists(self.output_path):
+            try:
+                os.makedirs(self.output_path, exist_ok=True)
+                print(f"Created download directory: {self.output_path}")
+            except Exception as e:
+                print(f"Error creating download directory: {str(e)}")
+                # Fallback to system downloads if we can't create the directory
+                self.output_path = os.path.expanduser("~/Downloads")
+                os.makedirs(self.output_path, exist_ok=True)
+        
         self.info_thread = None
         self.download_thread = None
         self.returning_to_hub = False  # Add flag to track return to hub action
@@ -1547,11 +1563,17 @@ class YouTubeDownloaderWindow(QMainWindow):
         self.status_bar.showMessage(message)
 
     def select_output_path(self):
-        """Select output directory"""
-        path = QFileDialog.getExistingDirectory(self, "Chọn thư mục lưu video", self.output_path)
+        """Select output directory and update shared configuration"""
+        path = QFileDialog.getExistingDirectory(self, "Chọn đường dẫn lưu video", self.output_path)
         if path:
             self.output_path = path
             self.path_label.setText(f"Đường dẫn tải về: {self.output_path}")
+            # Save path to shared configuration
+            self.config_manager.set_download_dir(path)
+            # Ensure the directory exists
+            os.makedirs(path, exist_ok=True)
+            # Show confirmation to user
+            self.status_bar.showMessage(f"Đường dẫn lưu đã được cập nhật: {path}", 3000)
 
     def download_video(self):
         """Download video with selected format"""

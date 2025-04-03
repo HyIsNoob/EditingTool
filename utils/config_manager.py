@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import platform
+import logging
 from typing import Dict, Any, Optional
 
 class ConfigManager:
@@ -10,6 +11,12 @@ class ConfigManager:
     Sử dụng singleton pattern để đảm bảo chỉ có một instance duy nhất.
     """
     _instance = None
+    
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = ConfigManager()
+        return cls._instance
     
     def __new__(cls):
         if cls._instance is None:
@@ -20,22 +27,39 @@ class ConfigManager:
     def __init__(self):
         if self._initialized:
             return
-            
-        # Xác định đường dẫn cấu hình
-        self._app_name = "KHyTool"
-        self._config_file = os.path.join(self._get_config_dir(), "config.json")
         
-        # Giá trị mặc định
+        # Set up logging
+        self.logger = logging.getLogger(__name__)
+        
+        # Define application name and paths
+        self._app_name = "KHyTool"
+        
+        # Get the application's base directory
+        try:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        except Exception:
+            # Fallback if running from a packaged app
+            base_dir = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
+        
+        # Config directory - create in the app's directory
+        self._config_dir = os.path.join(base_dir, "config")
+        os.makedirs(self._config_dir, exist_ok=True)
+        
+        # Path to the config file
+        self._config_file = os.path.join(self._config_dir, "settings.json")
+        
+        # Default configuration values
         self._defaults = {
             "general": {
                 "language": "vi",
                 "theme": "light",
                 "check_updates": True,
-                "first_run": True
+                "first_run": True,
+                "auto_reload_projects": True  # Add auto-reload setting
             },
             "directories": {
                 "projects_dir": os.path.join(os.path.expanduser("~"), "KHyTool Projects"),
-                "downloads_dir": os.path.join(os.path.expanduser("~"), "Downloads"),
+                "downloads_dir": os.path.expanduser("~/Downloads"),
                 "last_opened_project": None,
                 "last_opened_file": None
             },
@@ -55,7 +79,13 @@ class ConfigManager:
                 "youtube_quality": "best",
                 "tiktok_quality": "best",
                 "facebook_quality": "best",
-                "download_dir": os.path.expanduser("~/Downloads")
+                "download_dir": os.path.expanduser("~/Downloads"),
+                "thumbnail_cleanup": {
+                    "enabled": True,
+                    "max_age_days": 7,
+                    "max_count": 500,
+                    "last_cleanup": None
+                }
             },
             "audio_separator": {
                 "output_dir": os.path.expanduser("~/SeparatedAudio"),
@@ -64,13 +94,11 @@ class ConfigManager:
             "window_state": {
                 "main_geometry": None,
                 "main_state": None
-            }
+            },
+            "recent_projects": []
         }
         
-        # Tạo thư mục chứa file cấu hình nếu chưa tồn tại
-        os.makedirs(os.path.dirname(self._config_file), exist_ok=True)
-        
-        # Tải cấu hình từ file hoặc sử dụng mặc định
+        # Load the configuration
         self._config = self._load_config()
         
         self._initialized = True
@@ -118,9 +146,10 @@ class ConfigManager:
                 
             # Cập nhật cấu hình với các giá trị mặc định nếu thiếu
             self._update_missing_keys(config, self._defaults)
+            self.logger.info(f"Configuration loaded from {self._config_file}")
             return config
         except Exception as e:
-            print(f"Lỗi khi đọc file cấu hình: {e}")
+            self.logger.error(f"Lỗi khi đọc file cấu hình: {e}")
             return self._defaults.copy()
     
     def _update_missing_keys(self, config: Dict[str, Any], defaults: Dict[str, Any]) -> None:
@@ -137,9 +166,10 @@ class ConfigManager:
         try:
             with open(self._config_file, 'w', encoding='utf-8') as f:
                 json.dump(self._config, f, indent=4, ensure_ascii=False)
+            self.logger.info(f"Configuration saved to {self._config_file}")
             return True
         except Exception as e:
-            print(f"Lỗi khi lưu file cấu hình: {e}")
+            self.logger.error(f"Lỗi khi lưu file cấu hình: {e}")
             return False
     
     def get(self, section: str, key: str, default: Any = None) -> Any:
@@ -163,6 +193,35 @@ class ConfigManager:
         """Đặt lại cấu hình về mặc định"""
         self._config = self._defaults.copy()
         self.save()
+    
+    def get_download_dir(self) -> str:
+        """Get the shared download directory path"""
+        return self._config.get("downloader", {}).get("download_dir", self._defaults["downloader"]["download_dir"])
+    
+    def set_download_dir(self, path: str) -> None:
+        """Set the shared download directory path"""
+        self.set("downloader", "download_dir", path)
+        self.save()
+        self.logger.info(f"Download directory changed to {path}")
+    
+    def add_recent_project(self, project_path: str) -> None:
+        """Add a project to the recent projects list"""
+        recent_projects = self._config.get("recent_projects", [])
+        
+        # Remove if already exists
+        if project_path in recent_projects:
+            recent_projects.remove(project_path)
+        
+        # Add to beginning
+        recent_projects.insert(0, project_path)
+        
+        # Keep only 10 most recent
+        self._config["recent_projects"] = recent_projects[:10]
+        self.save()
+    
+    def get_recent_projects(self) -> list:
+        """Get list of recent projects"""
+        return self._config.get("recent_projects", [])
     
     # === Các getter/setter tiện ích cho các thiết lập phổ biến ===
     
@@ -195,11 +254,11 @@ class ConfigManager:
     
     @property
     def downloads_dir(self) -> str:
-        return self.get("directories", "downloads_dir", os.path.expanduser("~/Downloads"))
+        return self.get_download_dir()
     
     @downloads_dir.setter
     def downloads_dir(self, value: str) -> None:
-        self.set("directories", "downloads_dir", value)
+        self.set_download_dir(value)
     
     @property
     def last_opened_project(self) -> Optional[str]:
@@ -259,11 +318,11 @@ class ConfigManager:
     
     @property
     def download_dir(self) -> str:
-        return self.get("downloader", "download_dir", os.path.expanduser("~/Downloads"))
+        return self.get_download_dir()
     
     @download_dir.setter
     def download_dir(self, value: str) -> None:
-        self.set("downloader", "download_dir", value)
+        self.set_download_dir(value)
     
     # Audio separator settings
     @property
@@ -274,9 +333,74 @@ class ConfigManager:
     @audio_output_dir.setter
     def audio_output_dir(self, value: str) -> None:
         self.set("audio_separator", "output_dir", value)
+    
+    # Thumbnail cleaning settings
+    @property
+    def thumbnail_cleanup_enabled(self) -> bool:
+        """Get if thumbnail cleanup is enabled"""
+        return self.get("downloader", "thumbnail_cleanup", {}).get("enabled", True)
+    
+    @thumbnail_cleanup_enabled.setter
+    def thumbnail_cleanup_enabled(self, value: bool) -> None:
+        """Set if thumbnail cleanup is enabled"""
+        if "thumbnail_cleanup" not in self._config.get("downloader", {}):
+            self._config["downloader"]["thumbnail_cleanup"] = {}
+        self._config["downloader"]["thumbnail_cleanup"]["enabled"] = value
+        self.save()
+    
+    @property
+    def thumbnail_max_age_days(self) -> int:
+        """Get maximum age in days for thumbnails before cleanup"""
+        return self.get("downloader", "thumbnail_cleanup", {}).get("max_age_days", 7)
+    
+    @thumbnail_max_age_days.setter
+    def thumbnail_max_age_days(self, value: int) -> None:
+        """Set maximum age in days for thumbnails before cleanup"""
+        if "thumbnail_cleanup" not in self._config.get("downloader", {}):
+            self._config["downloader"]["thumbnail_cleanup"] = {}
+        self._config["downloader"]["thumbnail_cleanup"]["max_age_days"] = value
+        self.save()
+    
+    @property
+    def thumbnail_max_count(self) -> int:
+        """Get maximum number of thumbnails to keep"""
+        return self.get("downloader", "thumbnail_cleanup", {}).get("max_count", 500)
+    
+    @thumbnail_max_count.setter
+    def thumbnail_max_count(self, value: int) -> None:
+        """Set maximum number of thumbnails to keep"""
+        if "thumbnail_cleanup" not in self._config.get("downloader", {}):
+            self._config["downloader"]["thumbnail_cleanup"] = {}
+        self._config["downloader"]["thumbnail_cleanup"]["max_count"] = value
+        self.save()
+    
+    @property
+    def thumbnail_last_cleanup(self) -> float:
+        """Get timestamp of last thumbnail cleanup"""
+        return self.get("downloader", "thumbnail_cleanup", {}).get("last_cleanup")
+    
+    @thumbnail_last_cleanup.setter
+    def thumbnail_last_cleanup(self, value: float) -> None:
+        """Set timestamp of last thumbnail cleanup"""
+        if "thumbnail_cleanup" not in self._config.get("downloader", {}):
+            self._config["downloader"]["thumbnail_cleanup"] = {}
+        self._config["downloader"]["thumbnail_cleanup"]["last_cleanup"] = value
+        self.save()
+    
+    # Auto-reload setting
+    @property
+    def auto_reload_projects(self) -> bool:
+        """Get if projects should auto-reload when files change"""
+        return self.get("general", "auto_reload_projects", True)
+    
+    @auto_reload_projects.setter
+    def auto_reload_projects(self, value: bool) -> None:
+        """Set if projects should auto-reload when files change"""
+        self.set("general", "auto_reload_projects", value)
+        self.save()
 
 # Ví dụ sử dụng:
-# config = ConfigManager()
+# config = ConfigManager.get_instance()
 # print(config.language)
 # config.language = "en"
 # config.save()

@@ -93,13 +93,22 @@ Section "Install"
     CreateDirectory "$INSTDIR\\config"
     AccessControl::GrantOnFile "$INSTDIR\\config" "(BU)" "FullAccess"
     
-    ; Create Start Menu shortcut
+    ; Create Start Menu shortcut with admin flag
     CreateDirectory "$SMPROGRAMS\\{app_name}"
     CreateShortcut "$SMPROGRAMS\\{app_name}\\{app_name}.lnk" "$INSTDIR\\{app_name}.exe"
+    FileOpen $0 "$SMPROGRAMS\\{app_name}\\{app_name}.lnk" a
+    FileSeek $0 0 END
+    FileWrite $0 " " ; Admin flag - this marks the shortcut to request elevation
+    FileClose $0
+    
     CreateShortcut "$SMPROGRAMS\\{app_name}\\Uninstall.lnk" "$INSTDIR\\uninstall.exe"
     
-    ; Create Desktop shortcut
+    ; Create Desktop shortcut with admin flag
     CreateShortcut "$DESKTOP\\{app_name}.lnk" "$INSTDIR\\{app_name}.exe"
+    FileOpen $0 "$DESKTOP\\{app_name}.lnk" a
+    FileSeek $0 0 END
+    FileWrite $0 " " ; Admin flag - this marks the shortcut to request elevation
+    FileClose $0
     
     ; Write uninstaller
     WriteUninstaller "$INSTDIR\\uninstall.exe"

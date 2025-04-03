@@ -16,6 +16,7 @@ from utils.helpers import clean_filename, format_size, format_time
 from utils import compat  # Import the compatibility module
 import yt_dlp
 from utils.download_manager import DownloadManager  # Thêm import DownloadManager
+from utils.config_manager import ConfigManager  # Add this import
 
 
 class FacebookInfoThread(QThread):
@@ -761,7 +762,11 @@ class FacebookDownloaderWindow(QMainWindow):
         self.setWindowTitle("KHyTool - Facebook Downloader")
         self.setMinimumSize(900, 650)
         self.showMaximized()
-        self.output_path = os.path.expanduser("~/Downloads")
+        
+        # Use ConfigManager for output path
+        self.config_manager = ConfigManager.get_instance()
+        self.output_path = self.config_manager.get_download_dir()
+        
         self.info_thread = None
         self.download_thread = None
         self.returning_to_hub = False  # Add flag to track return to hub action
@@ -1464,6 +1469,8 @@ class FacebookDownloaderWindow(QMainWindow):
         if path:
             self.output_path = path
             self.path_label.setText(f"Đường dẫn tải về: {self.output_path}")
+            # Save path to shared configuration
+            self.config_manager.set_download_dir(path)
 
     def download_video(self):
         url = self.link_input.text().strip()

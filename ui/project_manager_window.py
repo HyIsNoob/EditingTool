@@ -150,7 +150,6 @@ class ProjectManagerWindow(QMainWindow):
             }
         """)
 
-    # ...existing code...
     def initUI(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -290,10 +289,8 @@ class ProjectManagerWindow(QMainWindow):
         project_label.setStyleSheet("font-weight: bold; color: #555;")
         project_header_layout.addWidget(project_label)
 
-                # Thêm nút làm mới danh sách dự án
+        # Thêm nút làm mới danh sách dự án
         refresh_projects_btn = QPushButton("Làm mới")
-        # Không dùng icon nữa
-        # refresh_projects_btn.setIcon(QIcon("resources/icons/reload.png"))
         refresh_projects_btn.setFixedSize(80, 28)  # Điều chỉnh kích thước cho phù hợp với text
         refresh_projects_btn.setToolTip("Làm mới danh sách dự án")
         refresh_projects_btn.clicked.connect(self.load_projects)
@@ -386,9 +383,6 @@ class ProjectManagerWindow(QMainWindow):
         self.project_name_label.setStyleSheet("color: #2e7d32; background-color: transparent;")
         
         rename_btn = QPushButton()
-        # Không dùng icon png nữa
-        # rename_btn.setIcon(QIcon("resources/icons/edit.png"))
-        # Thay bằng text
         rename_btn.setText("Đổi tên")
         rename_btn.setFixedSize(80, 32)  # Điều chỉnh kích thước cho phù hợp với text
         rename_btn.setToolTip("Đổi tên dự án")
@@ -453,27 +447,6 @@ class ProjectManagerWindow(QMainWindow):
         actions_layout = QHBoxLayout(actions_widget)
         actions_layout.setContentsMargins(5, 5, 5, 5)
 
-        # Nút làm mới
-        reload_btn = QPushButton("Làm Mới")
-        reload_btn.setIcon(QIcon("resources/icons/reload.png"))
-        reload_btn.setIconSize(QSize(18, 18))
-        reload_btn.setToolTip("Làm mới danh sách file")
-        reload_btn.clicked.connect(self.force_reload_files)
-        reload_btn.setCursor(Qt.PointingHandCursor)
-        reload_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e8f5e9;
-                border-radius: 6px;
-                padding: 8px 16px;
-                color: #2e7d32;  /* Màu chữ tối hơn */
-                border: 1px solid #c8e6c9;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #c8e6c9;
-            }
-        """)
-
         # Auto-refresh toggle và các nút cải tiến
         self.auto_refresh_check = QCheckBox("Tự Động")
         self.auto_refresh_check.setChecked(self.auto_refresh)
@@ -496,7 +469,29 @@ class ProjectManagerWindow(QMainWindow):
         """)
         actions_layout.addWidget(self.auto_refresh_check)
 
-                # Nút thêm file
+        # Nút làm mới - đặt ở cùng hàng với các nút khác
+        reload_btn = QPushButton("Làm Mới")
+        reload_btn.setIcon(QIcon("resources/icons/reload.png"))
+        reload_btn.setIconSize(QSize(18, 18))
+        reload_btn.setToolTip("Làm mới danh sách file")
+        reload_btn.clicked.connect(self.force_reload_files)
+        reload_btn.setCursor(Qt.PointingHandCursor)
+        reload_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e8f5e9;
+                border-radius: 6px;
+                padding: 8px 16px;
+                color: #2e7d32;  /* Màu chữ tối hơn */
+                border: 1px solid #c8e6c9;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #c8e6c9;
+            }
+        """)
+        actions_layout.addWidget(reload_btn)
+
+        # Nút thêm file
         add_files_btn = QPushButton("Thêm File")
         add_files_btn.setIcon(QIcon("resources/icons/add_file.png"))
         add_files_btn.setIconSize(QSize(18, 18))
@@ -726,7 +721,7 @@ class ProjectManagerWindow(QMainWindow):
             self.refresh_timer.timeout.connect(self.refresh_if_needed)
             
         if self.auto_refresh:
-            self.refresh_timer.start(5000)  # Check every 5 seconds
+            self.refresh_timer.start(3000)  # Check every 3 seconds (increased frequency)
         else:
             if self.refresh_timer.isActive():
                 self.refresh_timer.stop()
@@ -735,7 +730,11 @@ class ProjectManagerWindow(QMainWindow):
         """Toggle auto-refresh on/off"""
         self.auto_refresh = enabled
         self.setup_refresh_timer()
-        
+        if enabled:
+            self.statusBar().showMessage("Đã bật tự động làm mới", 2000)
+        else:
+            self.statusBar().showMessage("Đã tắt tự động làm mới", 2000)
+
     def refresh_if_needed(self):
         """Check if refresh is needed and refresh if so"""
         if not self.current_project or not os.path.exists(self.current_project):
@@ -782,6 +781,27 @@ class ProjectManagerWindow(QMainWindow):
                 if current_files != displayed_files:
                     self.load_folder_files(file_list, folder_name)
                     has_changes = True
+                    
+                # Check for file size or modification time changes
+                for i in range(file_list.count()):
+                    item = file_list.item(i)
+                    file_path = item.data(Qt.UserRole)
+                    if os.path.exists(file_path):
+                        file_size = os.path.getsize(file_path)
+                        file_mtime = os.path.getmtime(file_path)
+                        
+                        # Store size and mtime in item data if not already there
+                        stored_size = item.data(Qt.UserRole + 1)
+                        stored_mtime = item.data(Qt.UserRole + 2)
+                        
+                        if stored_size is None or stored_mtime is None:
+                            item.setData(Qt.UserRole + 1, file_size)
+                            item.setData(Qt.UserRole + 2, file_mtime)
+                        elif stored_size != file_size or stored_mtime != file_mtime:
+                            # File has changed, update the display
+                            self.load_folder_files(file_list, folder_name)
+                            has_changes = True
+                            break
         
         except Exception as e:
             # Silently ignore errors during background refresh
@@ -797,10 +817,27 @@ class ProjectManagerWindow(QMainWindow):
             QMessageBox.warning(self, "Thông báo", "Không có dự án nào được mở.")
             return
             
-        self.reload_files()
-        # Also check for files to organize
-        self.organize_project_folder(silent=True)
-        QMessageBox.information(self, "Đã làm mới", "Đã làm mới danh sách file và sắp xếp các file mới.")
+        # Show loading indicator in status bar
+        self.statusBar().showMessage("Đang tải lại dự án...")
+        
+        # Use a single-shot timer to allow UI update
+        QTimer.singleShot(100, lambda: self._perform_reload())
+
+    def _perform_reload(self):
+        """Actually perform the reload after UI update"""
+        try:
+            # Reload all folder files
+            self.reload_files()
+            
+            # Also check for files to organize
+            self.organize_project_folder(silent=True)
+            
+            # Không hiển thị thông báo popup nữa, chỉ cập nhật thanh trạng thái
+            # Update status
+            self.statusBar().showMessage("Đã làm mới hoàn tất", 3000)
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", f"Không thể làm mới dự án: {str(e)}")
+            self.statusBar().showMessage(f"Lỗi: {str(e)}", 3000)
 
     def load_projects(self):
         """Tải danh sách dự án"""
@@ -1085,8 +1122,6 @@ class ProjectManagerWindow(QMainWindow):
         file_paths, _ = QFileDialog.getOpenFileNames(self, "Chọn File", "")
         if file_paths:
             self.handle_files_dropped(file_paths, self.current_folder)
-    
-    # ...existing code...
 
     def load_folder_files(self, file_list_widget, folder_name):
         """Tải danh sách file trong một thư mục - Cải tiến hiển thị"""
@@ -1113,17 +1148,28 @@ class ProjectManagerWindow(QMainWindow):
                     size_str = f"{file_size/1024:.1f} KB"
                 else:
                     size_str = f"{file_size/(1024*1024):.1f} MB"
+                    
+                # Thay đổi định dạng hiển thị - không sử dụng HTML tags
+                item.setText(filename)
+                item.setToolTip(f"{file_path}\nKích thước: {size_str}")
                 
-                # Định dạng hiển thị
-                display_text = f"{filename}\n"
-                display_text += f"<span style='font-size:8pt; color:#888;'>{size_str}</span>"
-                item.setText(display_text)
+                # Lưu thông tin kích thước để hiển thị riêng
+                item.setData(Qt.UserRole + 3, size_str)
             except:
                 item.setText(filename)
             
             item.setData(Qt.UserRole, file_path)
-            item.setToolTip(file_path)
             
+            # Store file size and modification time for change detection
+            if os.path.exists(file_path):
+                try:
+                    file_size = os.path.getsize(file_path)
+                    file_mtime = os.path.getmtime(file_path)
+                    item.setData(Qt.UserRole + 1, file_size)
+                    item.setData(Qt.UserRole + 2, file_mtime)
+                except:
+                    pass
+                    
             # Set icon based on file extension
             ext = os.path.splitext(file_path)[1].lower()
             if ext in ['.jpg', '.jpeg', '.png', '.bmp', '.gif']:
@@ -1136,9 +1182,9 @@ class ProjectManagerWindow(QMainWindow):
                 item.setIcon(QIcon("resources/icons/subtitle.png"))
             else:
                 item.setIcon(QIcon("resources/icons/file.png"))
-                
+                    
             file_list_widget.addItem(item)
-    
+
     def on_tab_changed(self, index):
         """Xử lý khi chuyển tab thư mục"""
         if index >= 0:

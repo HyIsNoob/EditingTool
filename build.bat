@@ -44,9 +44,10 @@ pyinstaller --noconfirm --clean ^
     --hidden-import=utils.helpers ^
     --hidden-import=utils.compat ^
     --icon=resources/icon.ico ^
+    --uac-admin ^
     main.py
 
-REM Enhance the package with custom additions
+REM Enhance the package with additional components
 echo Enhancing package with additional components...
 python enhanced_package.py
 
