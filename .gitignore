@@ -8,17 +8,53 @@ dist/
 build/
 *.egg-info/
 
-# Virtual environments
-venv/
-env/
-.env/
+# PyInstaller
+*.manifest
+*.spec
+installer/
+
+# User data directories
+downloads/
+thumbnails/
+temp/
+config/*.json
+
+# Application specific
+*.mp4
+*.mp3
+*.srt
+*.webm
+*.mkv
+*.wav
+*.aac
+*.flac
+models/whisper/*
+bin/ffmpeg*
 
 # IDE files
-.vscode/
 .idea/
+.vscode/
+*.swp
+*.swo
 
-# Project specific
-temp/
-config/
-models/
+# Environment
+venv/
+env/
+.env
+.venv
+ENV/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project specific logs and data
 *.log
+*.db
+*.sqlite
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
